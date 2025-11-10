@@ -1,0 +1,6 @@
+LH = Lorry
+O = Status
+Trailer-South = Mean Trailers going to south india
+D_City = City where they are supplying
+Region = Where he is supplying
+D_State = The state in which they are supplying.
