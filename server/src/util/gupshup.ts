@@ -14,6 +14,9 @@ const WEBHOOK_URL = new URL(
   API_URL!
 ).toString();
 
+// Flow responses are now handled in the main incoming message webhook
+const FLOW_WEBHOOK_URL = WEBHOOK_URL;
+
 const partnerClient = axios.create({ baseURL: "https://partner.gupshup.io/" });
 
 export async function getPartnerToken() {
@@ -121,7 +124,7 @@ export async function updateSubscriptionUrl({
     var params = new URLSearchParams();
     params.set("url", url);
     params.set("doCheck", "false");
-    params.set("modes", "ALL");
+    params.set("modes", "ALL,FAILED,TEMPLATE");
     params.set("version", "3");
     await partnerClient.put<
       { status: "success" } | { status: "error"; message: string }
@@ -215,7 +218,7 @@ export async function createNecessarySubscriptions() {
       appId: GUPSHUP_APP_ID!,
       url: WEBHOOK_URL!,
       tag: GUPSHUP_SUB_TAG!,
-      modes: "ALL",
+      modes: "ALL,FAILED,TEMPLATE",
       version: "3",
       meta: {},
       appToken,
@@ -410,6 +413,121 @@ export async function sendFlowMessage(props: {
   }
 }
 
+export async function sendBidFlowTemplate(props: {
+  toPhoneNumber: string;
+  templateName: string;
+  languageCode?: string;
+  enquiryDetails: string;
+  flowId: string;
+  flowToken: string;
+  flowData?: Record<string, any>;
+}) {
+  try {
+    const appToken = await getCachedAppToken();
+    if (!appToken) {
+      throw new Error("Failed to get app token");
+    }
+
+    const headers = { Authorization: appToken };
+    
+    const templateMessage = {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: props.toPhoneNumber,
+      type: "template",
+      template: {
+        name: props.templateName,
+        language: { 
+          code: props.languageCode || "en" 
+        },
+        components: [
+          {
+            type: "body",
+            parameters: [
+              {
+                type: "text",
+                text: props.enquiryDetails
+              }
+            ]
+          },
+          {
+            type: "button",
+            sub_type: "flow",
+            index: "0",
+            parameters: [
+              {
+                type: "action",
+                action: {
+                  flow_token: props.flowToken,
+                  flow_action_data: {
+                    flow_id: props.flowId,
+                    navigate_screen: "BID_FORM",
+                    ...(props.flowData || {})
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    };
+
+    const response = await partnerClient.post<{
+      messages: { id: string }[];
+      messaging_product: string;
+      contacts: { input: string; wa_id: string }[];
+    }>(`/partner/app/${GUPSHUP_APP_ID}/v3/message`, templateMessage, { headers });
+
+    return response.data;
+  } catch (error) {
+    console.error("Error sending bid flow template:", error);
+    throw error;
+  }
+}
+
+export async function testSendBidTemplate(phoneNumber: string = "917595903437") {
+  const enquiryDetails = "📋 *Enquiry 24* 📍 *Route:* Mumbai → Thane 📦 *Cargo:* Furniture ⚖️ *Weight:* 2.4 MT 🚛 *Vehicle:* Truck 📝 *Remarks:* Available on saturday only";
+  
+  const flowData = {
+    enquiryId: "24",
+    from: "Mumbai",
+    to: "Thane", 
+    cargoType: "Furniture",
+    cargoWeight: "2.4",
+    remarks: "Available on saturday only",
+    vehicleType: "Truck"
+  };
+
+  const flowToken = `test_bid_token_${JSON.stringify({
+    enquiry_id: 24,
+    broker_id: 1, 
+    timestamp: Date.now()
+  })}`;
+
+  try {
+    console.log(`Sending bid template to ${phoneNumber}`);
+    console.log("Enquiry Details:", enquiryDetails);
+    console.log("Flow Data:", JSON.stringify(flowData, null, 2));
+    console.log("Flow Token:", flowToken);
+
+    const response = await sendBidFlowTemplate({
+      toPhoneNumber: phoneNumber,
+      templateName: "kiran_transport_bid",
+      languageCode: "en",
+      enquiryDetails,
+      flowId: "24105313799145675", 
+      flowToken,
+      flowData
+    });
+
+    console.log("Template sent successfully:", JSON.stringify(response, null, 2));
+    return response;
+  } catch (error) {
+    console.error("Failed to send bid template:", error);
+    throw error;
+  }
+}
+
 export async function sendBidFlowMessage(props: {
   toPhoneNumber: string;
   brokerName: string;
@@ -419,11 +537,34 @@ export async function sendBidFlowMessage(props: {
   cargoType: string;
   cargoWeight?: number;
   remarks?: string;
+  templateName?: string;
   flowId: string;
   flowToken: string;
   isReminder?: boolean;
 }) {
   const isReminderMsg = props.isReminder || false;
+  
+  // Format enquiry details for the template parameter
+  const enquiryDetails = `📋 *Enquiry ${props.enquiryId}*                                                                                             
+📍 *Route:* ${props.from} → ${props.to}                                                                                                       
+📦 *Cargo:* ${props.cargoType}                                                                                      
+${props.cargoWeight ? `⚖️ *Weight:* ${props.cargoWeight} MT` : ''}                                                                                   
+🚛 *Vehicle:* Truck                                                                                      
+${props.remarks ? `📝 *Remarks:* ${props.remarks}` : 'Available on saturday only'}`;
+
+  // Use template if provided, otherwise fallback to interactive flow
+  if (props.templateName) {
+    return await sendBidFlowTemplate({
+      toPhoneNumber: props.toPhoneNumber,
+      templateName: props.templateName,
+      languageCode: "en",
+      enquiryDetails,
+      flowId: props.flowId,
+      flowToken: props.flowToken
+    });
+  }
+
+  // Fallback to interactive flow message (existing logic)
   const headerText = isReminderMsg 
     ? `🔔 Bid Reminder - Transport Request`
     : `🚚 New Transport Bid Request`;
@@ -436,11 +577,7 @@ export async function sendBidFlowMessage(props: {
 
 We have a ${isReminderMsg ? 'pending' : 'new'} transport enquiry for you:
 
-📋 **Enquiry #${props.enquiryId}**
-📍 **Route:** ${props.from} → ${props.to}
-📦 **Cargo:** ${props.cargoType}
-${props.cargoWeight ? `⚖️ **Weight:** ${props.cargoWeight} MT` : ''}
-${props.remarks ? `📝 **Remarks:** ${props.remarks}` : ''}
+${enquiryDetails}
 
 Please submit your competitive bid amount for this transport.`;
 

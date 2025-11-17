@@ -10,6 +10,7 @@ import { sendTextMsg } from "../util/gupshup";
 import { leads, enquiries } from "../db/schema";
 import { eq, ilike, and } from "drizzle-orm";
 import { db } from "../db/connection";
+import { processSimpleBidResponse } from "../util/simpleBidService";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -137,6 +138,10 @@ interface Body {
             from: string; // Phone Number
             id: string;
             timestamp: string;
+            context?: {
+              from: string;
+              id: string;
+            };
           } & (
             | { type: "text"; text: { body: string } }
             | {
@@ -159,8 +164,30 @@ interface Body {
                   url: string;
                 };
               }
+            | {
+                type: "interactive";
+                interactive: {
+                  type: "nfm_reply";
+                  nfm_reply: {
+                    name: string;
+                    body: string;
+                    response_json: string;
+                  };
+                };
+              }
           )
         >;
+        statuses?: Array<{
+          id: string;
+          status: "sent" | "delivered" | "read" | "failed";
+          timestamp: string;
+          recipient_id: string;
+          errors?: Array<{
+            code: number;
+            message: string;
+            error_data?: any;
+          }>;
+        }>;
       };
     }>;
   }>;
@@ -171,21 +198,31 @@ export const gupshup_v3_msg_webhook = async (
   req: Request<any, any, Body>,
   res: Response
 ) => {
-  // console.log(JSON.stringify(req.body, null, 2));
+  console.log(JSON.stringify(req.body, null, 2));
   try {
     for (const entry of req.body.entry) {
       for (const change of entry.changes) {
         if (change.field !== "messages") continue;
 
-        for (const msg of change.value.messages) {
-          const senderPhoneNumber = msg.from;
-          // Only process messages from the authorized number
-          if (
-            ["917595903437", "918902673788"].find(
-              (v) => senderPhoneNumber === v
-            )
-          ) {
-            await placeOrder(msg, senderPhoneNumber);
+        // Skip message status updates since we removed flow tracking
+
+        // Handle incoming messages
+        if (change.value.messages) {
+          for (const msg of change.value.messages) {
+            const senderPhoneNumber = msg.from;
+            
+            // Check if this is a flow response (interactive message)
+            if (msg.type === "interactive" && msg.interactive.type === "nfm_reply") {
+              await handleFlowResponse(msg);
+            }
+            // Only process regular messages from authorized numbers
+            else if (
+              ["917595903437", "918902673788"].find(
+                (v) => senderPhoneNumber === v
+              )
+            ) {
+              await placeOrder(msg, senderPhoneNumber);
+            }
           }
         }
       }
@@ -196,6 +233,93 @@ export const gupshup_v3_msg_webhook = async (
     res.sendStatus(200);
   }
 };
+
+
+async function handleFlowResponse(message: {
+  from: string;
+  id: string;
+  timestamp: string;
+  type: "interactive";
+  interactive: {
+    type: "nfm_reply";
+    nfm_reply: {
+      name: string;
+      body: string;
+      response_json: string;
+    };
+  };
+  context?: {
+    from: string;
+    id: string;
+  };
+}) {
+  try {
+    const phoneNumber = message.from;
+    const responseData = JSON.parse(message.interactive.nfm_reply.response_json);
+    
+    console.log("Flow response received:", {
+      from: phoneNumber,
+      messageId: message.id,
+      responseData
+    });
+
+    // Extract bid information from flow response
+    const bidAmount = parseFloat(responseData.amount || responseData.bid_amount || "0");
+    const remarks = responseData.remarks || responseData.notes || "";
+    const flowToken = responseData.flow_token;
+
+    if (!bidAmount || bidAmount <= 0) {
+      // Send error message to broker
+      await sendTextMsg({
+        text: "❌ Invalid bid amount. Please submit a valid bid amount greater than 0.",
+        toPhoneNumber: phoneNumber,
+      });
+      return;
+    }
+
+    if (!flowToken) {
+      console.error("Flow token not found in response data");
+      await sendTextMsg({
+        text: "❌ Error processing your bid. Please try again or contact support.",
+        toPhoneNumber: phoneNumber,
+      });
+      return;
+    }
+
+    // Process the bid using simple bid service
+    const result = await processSimpleBidResponse({
+      flowToken,
+      bidAmount,
+      remarks,
+      phoneNumber,
+      responseData,
+    });
+
+    // Send confirmation message to broker
+    await sendTextMsg({
+      text: `✅ Your bid has been submitted successfully!\n\n🆔 Bid ID: ${result.bidId}\n💰 Amount: ₹${bidAmount.toLocaleString('en-IN')}\n📋 Enquiry: #${result.enquiryId}\n\nWe'll notify you once the bid is reviewed. Thank you! 🙏`,
+      toPhoneNumber: phoneNumber,
+    });
+
+    console.log(`Bid processed successfully for enquiry ${result.enquiryId}: ₹${bidAmount}`);
+
+  } catch (error) {
+    console.error("Error handling flow response:", error);
+    
+    // Log error for debugging
+    console.error("Bid processing failed:", error instanceof Error ? error.message : "Unknown error");
+    
+    // Send error message to broker
+    try {
+      await sendTextMsg({
+        text: "❌ Error processing your bid. Please try again or contact our support team.",
+        toPhoneNumber: message.from,
+      });
+    } catch (msgError) {
+      console.error("Error sending error message:", msgError);
+    }
+  }
+}
 
 export async function placeOrder(msg: any, senderPhoneNumber: string) {
   let messageContent = "";
@@ -322,6 +446,70 @@ GUPSHUP INCOMING WHATSAPP IMAGE MESSAGE
   ],
   "gs_app_id": "3553ab46-e985-4195-989d-9bb90653e439",
   "object": "whatsapp_business_account"
+}
+
+ */
+
+
+/**
+ * {
+  "entry": [
+    {
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "contacts": [
+              {
+                "profile": {
+                  "name": "Soumit"
+                },
+                "wa_id": "917595903437"
+              }
+            ],
+            "messages": [
+              {
+                "context": {
+                  "from": "919147370292",
+                  "gs_id": "c447ac70-d126-447d-9329-b5893fd04fe8",
+                  "id": "a40ee2c6-020e-42f5-9dda-b0cd032f31b0",
+                  "meta_msg_id": "wamid.HBgMOTE3NTk1OTAzNDM3FQIAERgSNTQwRTkxRDU5OEEyNTk5QzlCAA=="
+                },
+                "from": "917595903437",
+                "id": "wamid.HBgMOTE3NTk1OTAzNDM3FQIAEhggQUM4NDEwMjI0NTJCQTVGRTkzRUIwNzQ0RkQxQTY4NzQA",
+                "interactive": {
+                  "nfm_reply": {
+                    "body": "Sent",
+                    "name": "flow",
+                    "response_json": "{\"amount\":\"32000\",\"flow_token\":\"eyJlbnF1aXJ5SWQiOjMwLCJicm9rZXJJZCI6NywidGltZXN0YW1wIjoxNzYzMzUzNjIxOTE1fQ==.85301172\"}"
+                  },
+                  "type": "nfm_reply"
+                },
+                "timestamp": "1763354313",
+                "type": "interactive"
+              }
+            ],
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "919147370292",
+              "phone_number_id": "744596618744161"
+            }
+          }
+        }
+      ],
+      "id": "658675287277946"
+    }
+  ],
+  "gs_app_id": "3553ab46-e985-4195-989d-9bb90653e439",
+  "object": "whatsapp_business_account"
+}
+Flow response received: {
+  from: '917595903437',
+  messageId: 'wamid.HBgMOTE3NTk1OTAzNDM3FQIAEhggQUM4NDEwMjI0NTJCQTVGRTkzRUIwNzQ0RkQxQTY4NzQA',
+  responseData: {
+    amount: '32000',
+    flow_token: 'eyJlbnF1aXJ5SWQiOjMwLCJicm9rZXJJZCI6NywidGltZXN0YW1wIjoxNzYzMzUzNjIxOTE1fQ==.85301172'
+  }
 }
 
  */

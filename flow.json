@@ -1,0 +1,78 @@
+{
+  "version": "7.2",
+  "screens": [
+    {
+      "id": "BID_FORM",
+      "title": "Submit Your Bid",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "enquiryId": {
+          "type": "string",
+          "__example__": "24"
+        },
+        "from": {
+          "type": "string",
+          "__example__": "Mumbai"
+        },
+        "to": {
+          "type": "string",
+          "__example__": "Thane"
+        },
+        "cargoType": {
+          "type": "string",
+          "__example__": "Furniture"
+        },
+        "cargoWeight": {
+          "type": "string",
+          "__example__": "2.4"
+        },
+        "remarks": {
+          "type": "string",
+          "__example__": "Available on saturday only"
+        },
+        "vehicleType": {
+          "type": "string",
+          "__example__": "Truck"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "`'📋 Enquiry '${data.enquiryId}`"
+          },
+          {
+            "type": "TextBody",
+            "text": "`'📍 Route: '${data.from}' → '${data.to}'\n📦 Cargo: '${data.cargoType}'\n⚖️ Weight: '${data.cargoWeight}' MT\n🚛 Vehicle: '${data.vehicleType}'\n📝 Remarks: '${data.remarks}`"
+          },
+          {
+            "type": "TextInput",
+            "name": "amount",
+            "label": "Amount (₹)",
+            "input-type": "number",
+            "required": true
+          },
+          {
+            "type": "TextArea",
+            "name": "remarks",
+            "label": "Additional Remarks",
+            "required": false
+          },
+          {
+            "type": "Footer",
+            "label": "Submit Bid",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {
+                "amount": "${form.amount}",
+                "remarks": "${form.remarks}"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

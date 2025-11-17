@@ -42,3 +42,19 @@ export const brokerTransportRateBids = pgTable("transport_rate_bids", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// Simplified bid flow messages for transport broker rate enquiries
+export const transportBidFlowMessages = pgTable("transport_bid_flow_messages", {
+  id: serial("id").primaryKey(),
+  transportEnquiryId: integer("transport_enquiry_id")
+    .references(() => transportBrokerRateEnquiries.id, { onDelete: "cascade" })
+    .notNull(),
+  brokerId: integer("broker_id")
+    .references(() => brokers.id, { onDelete: "cascade" })
+    .notNull(),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+  flowToken: varchar("flow_token", { length: 512 }).notNull(),
+  gupshupMsgId: varchar("gupshup_msg_id", { length: 256 }),
+  respondedAt: timestamp("responded_at"),
+  responseAmount: doublePrecision("response_amount"),
+});

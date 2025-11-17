@@ -14,10 +14,9 @@ import transportOrdersRouter from './routes/transportOrders';
 import customerOrdersRouter from './routes/customerOrders';
 import enquiryTransportLinksRouter from './routes/enquiryTransportLinks';
 import dashboardRouter from './routes/dashboard';
-import bidRequestsRouter from './routes/bidRequests';
+import biddingRouter from './routes/bidding';
 import { setupGupshup } from './util/gupshup';
 import { gupshup_v3_msg_webhook } from './webhooks/gupshup_incoming_msg_webhook';
-import { gupshup_flow_response_webhook } from './webhooks/gupshup_flow_response_webhook';
 
 dotenv.config();
 
@@ -50,11 +49,11 @@ app.use('/api/transport-orders', transportOrdersRouter);
 app.use('/api/customer-orders', customerOrdersRouter);
 app.use('/api/enquiry-transport-links', enquiryTransportLinksRouter);
 app.use('/api/dashboard', dashboardRouter);
-app.use('/api/bid-requests', bidRequestsRouter);
+app.use('/api/bidding', biddingRouter);
 
 // Webhooks
 app.post('/api/webhooks/gupshup_incoming_msg_webhook', gupshup_v3_msg_webhook);
-app.post('/api/webhooks/gupshup_flow_response_webhook', gupshup_flow_response_webhook);
+// Flow responses are now handled in the main incoming message webhook
 
 // Health check endpoint
 app.get('/health', (req, res) => {

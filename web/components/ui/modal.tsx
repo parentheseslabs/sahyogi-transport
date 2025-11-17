@@ -6,7 +6,7 @@ export interface ModalProps {
   onClose: () => void
   title?: string
   children: React.ReactNode
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl'
   showCloseButton?: boolean
 }
 
@@ -34,7 +34,8 @@ const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
       sm: 'max-w-sm',
       md: 'max-w-md',
       lg: 'max-w-lg',
-      xl: 'max-w-xl'
+      xl: 'max-w-xl',
+      '2xl': 'max-w-6xl'
     }
     
     return (

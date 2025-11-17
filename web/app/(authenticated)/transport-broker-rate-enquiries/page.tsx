@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Search, Plus, Edit, Trash2, ChevronLeft, ChevronRight, X, Calendar, Truck, Package, MapPin, Eye, ArrowUp, ArrowDown, ArrowUpDown, ChevronUp, ChevronDown, Save, XCircle } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, ChevronLeft, ChevronRight, X, Calendar, Truck, Package, MapPin, Eye, ArrowUp, ArrowDown, ArrowUpDown, ChevronUp, ChevronDown, Save, XCircle, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import BidRequestsTable from '../../../components/bidding/BidRequestsTable';
 
 interface TransportBrokerRateEnquiry {
   id: number;
@@ -68,6 +69,7 @@ export default function TransportBrokerRateEnquiriesPage() {
   const [newBidForm, setNewBidForm] = useState({ brokerId: '', rate: '' });
   const [editBidForm, setEditBidForm] = useState({ rate: '' });
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' | 'warning' } | null>(null);
+  const [activeTab, setActiveTab] = useState<Record<number, 'manual' | 'whatsapp'>>({}); // Track active tab per enquiry
 
   const showToast = (message: string, type: 'error' | 'success' | 'warning' = 'error') => {
     setToast({ message, type });
@@ -458,6 +460,14 @@ export default function TransportBrokerRateEnquiriesPage() {
     }
   };
 
+  const getActiveTab = (enquiryId: number): 'manual' | 'whatsapp' => {
+    return activeTab[enquiryId] || 'whatsapp'; // Default to WhatsApp tab
+  };
+
+  const setTabForEnquiry = (enquiryId: number, tab: 'manual' | 'whatsapp') => {
+    setActiveTab(prev => ({ ...prev, [enquiryId]: tab }));
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center">
@@ -718,12 +728,31 @@ export default function TransportBrokerRateEnquiriesPage() {
                   </tr>
                   {expandedEnquiries.has(enquiry.id) && (
                     <tr>
-                      {/* <td></td> */}
-                      <td colSpan={14} className="px-3 py-2 bg-gray-50">
+                      <td colSpan={14} className="px-3 py-2 bg-gray-50 space-y-3">
+                        {/* WhatsApp Bid Requests */}
+                        <BidRequestsTable
+                          enquiryId={enquiry.id}
+                          isExpanded={expandedEnquiries.has(enquiry.id)}
+                        />
+                        
+                        {/* Bids */}
                         <div className="border border-gray-200 rounded bg-white">
-                          {loadingBids.has(enquiry.id) ? (
-                            <div className="text-xs text-gray-500 py-2">Loading bids...</div>
-                          ) : bidsByEnquiry[enquiry.id]?.length > 0 ? (
+                          <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
+                            <div className="flex justify-between items-center">
+                              <h4 className="text-sm font-medium text-gray-900">Bids</h4>
+                              <button
+                                onClick={() => fetchBidsForEnquiry(enquiry.id)}
+                                className="p-1 text-gray-600 hover:text-black rounded"
+                                title="Refresh bids"
+                              >
+                                <RefreshCw size={14} className={loadingBids.has(enquiry.id) ? 'animate-spin' : ''} />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="p-3">
+                              {loadingBids.has(enquiry.id) ? (
+                                <div className="text-xs text-gray-500 py-2">Loading manual bids...</div>
+                              ) : bidsByEnquiry[enquiry.id]?.length > 0 ? (
                             <div className="overflow-x-auto">
                               <table className="w-full text-xs">
                                 <thead>
@@ -932,6 +961,7 @@ export default function TransportBrokerRateEnquiriesPage() {
                               </button>
                             </div>
                           )}
+                          </div>
                         </div>
                       </td>
                     </tr>
