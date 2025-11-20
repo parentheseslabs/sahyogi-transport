@@ -15,6 +15,7 @@ import customerOrdersRouter from './routes/customerOrders';
 import enquiryTransportLinksRouter from './routes/enquiryTransportLinks';
 import dashboardRouter from './routes/dashboard';
 import biddingRouter from './routes/bidding';
+import vehicleTypesRouter from './routes/vehicleTypes';
 import { setupGupshup } from './util/gupshup';
 import { gupshup_v3_msg_webhook } from './webhooks/gupshup_incoming_msg_webhook';
 
@@ -50,6 +51,7 @@ app.use('/api/customer-orders', customerOrdersRouter);
 app.use('/api/enquiry-transport-links', enquiryTransportLinksRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/bidding', biddingRouter);
+app.use('/api/vehicle-types', vehicleTypesRouter);
 
 // Webhooks
 app.post('/api/webhooks/gupshup_incoming_msg_webhook', gupshup_v3_msg_webhook);

@@ -8,3 +8,4 @@ export * from "./transportRoutes";
 export * from "./orders";
 export * from "./customerOrders";
 export * from "./enquiryTransportLinks";
+export * from "./vehicleTypes";

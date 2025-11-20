@@ -19,6 +19,7 @@ import {
   Package,
   ChevronLeft,
   ChevronRight,
+  Car,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -58,6 +59,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Customers', href: '/leads', icon: Users },
     { name: 'Brokers', href: '/brokers', icon: Truck },
+    { name: 'Vehicle Types', href: '/vehicle-types', icon: Car },
     { name: 'Customer Enquiries', href: '/enquiries', icon: FileText },
     { name: 'Transport Rate Enquiries', href: '/transport-broker-rate-enquiries', icon: Mail },
     { name: 'Truck Orders', href: '/transport-orders', icon: ShoppingCart },

@@ -41,6 +41,18 @@ interface Pagination {
   hasPrev: boolean;
 }
 
+// Indian States and Union Territories
+const INDIAN_STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  // Union Territories
+  'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu',
+  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
+];
+
 export default function BrokersPage() {
   const [brokers, setBrokers] = useState<Broker[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
@@ -75,12 +87,12 @@ export default function BrokersPage() {
   const [newRegion, setNewRegion] = useState({ region: '', state: '', city: '' });
   const [newVehicleType, setNewVehicleType] = useState('');
   const [editingRegionIndex, setEditingRegionIndex] = useState<number | null>(null);
-  const [editingVehicleTypeIndex, setEditingVehicleTypeIndex] = useState<number | null>(null);
   const [editingRegion, setEditingRegion] = useState({ region: '', state: '', city: '' });
-  const [editingVehicleTypeValue, setEditingVehicleTypeValue] = useState('');
+  const [availableVehicleTypes, setAvailableVehicleTypes] = useState<{id: number, name: string}[]>([]);
 
   useEffect(() => {
     fetchBrokers();
+    fetchAvailableVehicleTypes();
   }, [pagination.page, fromDate, toDate, sortBy, sortOrder, pageSize]);
 
   const fetchBrokers = async () => {
@@ -112,6 +124,24 @@ export default function BrokersPage() {
       console.error('Error fetching brokers:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAvailableVehicleTypes = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/vehicle-types`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch vehicle types');
+      
+      const data = await response.json();
+      setAvailableVehicleTypes(data);
+    } catch (error) {
+      console.error('Error fetching vehicle types:', error);
     }
   };
 
@@ -162,9 +192,7 @@ export default function BrokersPage() {
     setNewRegion({ region: '', state: '', city: '' });
     setNewVehicleType('');
     setEditingRegionIndex(null);
-    setEditingVehicleTypeIndex(null);
     setEditingRegion({ region: '', state: '', city: '' });
-    setEditingVehicleTypeValue('');
     setShowModal(true);
   };
 
@@ -217,9 +245,7 @@ export default function BrokersPage() {
     setNewRegion({ region: '', state: '', city: '' });
     setNewVehicleType('');
     setEditingRegionIndex(null);
-    setEditingVehicleTypeIndex(null);
     setEditingRegion({ region: '', state: '', city: '' });
-    setEditingVehicleTypeValue('');
     setShowModal(true);
   };
 
@@ -288,28 +314,6 @@ export default function BrokersPage() {
     setEditingRegion({ region: '', state: '', city: '' });
   };
 
-  const startEditingVehicleType = (index: number, currentValue: string) => {
-    setEditingVehicleTypeIndex(index);
-    setEditingVehicleTypeValue(currentValue);
-  };
-
-  const saveVehicleTypeEdit = () => {
-    if (editingVehicleTypeIndex !== null && editingVehicleTypeValue.trim()) {
-      const newVehicleTypes = [...brokerVehicleTypes];
-      newVehicleTypes[editingVehicleTypeIndex] = {
-        ...newVehicleTypes[editingVehicleTypeIndex],
-        vehicleType: editingVehicleTypeValue.trim(),
-      };
-      setBrokerVehicleTypes(newVehicleTypes);
-    }
-    setEditingVehicleTypeIndex(null);
-    setEditingVehicleTypeValue('');
-  };
-
-  const cancelVehicleTypeEdit = () => {
-    setEditingVehicleTypeIndex(null);
-    setEditingVehicleTypeValue('');
-  };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this broker?')) return;
@@ -652,18 +656,23 @@ export default function BrokersPage() {
                     placeholder="Region (optional)"
                     className="px-2 py-1.5 border border-black rounded text-xs text-black focus:ring-1 focus:ring-black"
                   />
-                  <input
-                    type="text"
+                  <select
                     value={newRegion.state}
                     onChange={(e) => setNewRegion({ ...newRegion, state: e.target.value })}
-                    placeholder="State"
                     className="px-2 py-1.5 border border-black rounded text-xs text-black focus:ring-1 focus:ring-black"
-                  />
+                  >
+                    <option value="">Select State/UT</option>
+                    {INDIAN_STATES.map((state) => (
+                      <option key={state} value={state}>
+                        {state}
+                      </option>
+                    ))}
+                  </select>
                   <input
                     type="text"
                     value={newRegion.city}
                     onChange={(e) => setNewRegion({ ...newRegion, city: e.target.value })}
-                    placeholder="City"
+                    placeholder="City (optional)"
                     className="px-2 py-1.5 border border-black rounded text-xs text-black focus:ring-1 focus:ring-black"
                     onKeyPress={(e) => e.key === 'Enter' && addRegion()}
                   />
@@ -688,18 +697,23 @@ export default function BrokersPage() {
                               placeholder="Region"
                               className="px-1 py-0.5 border border-black rounded text-xs text-black focus:ring-1 focus:ring-black"
                             />
-                            <input
-                              type="text"
+                            <select
                               value={editingRegion.state}
                               onChange={(e) => setEditingRegion({ ...editingRegion, state: e.target.value })}
-                              placeholder="State"
                               className="px-1 py-0.5 border border-black rounded text-xs text-black focus:ring-1 focus:ring-black"
-                            />
+                            >
+                              <option value="">Select State/UT</option>
+                              {INDIAN_STATES.map((state) => (
+                                <option key={state} value={state}>
+                                  {state}
+                                </option>
+                              ))}
+                            </select>
                             <input
                               type="text"
                               value={editingRegion.city}
                               onChange={(e) => setEditingRegion({ ...editingRegion, city: e.target.value })}
-                              placeholder="City"
+                              placeholder="City (optional)"
                               className="px-1 py-0.5 border border-black rounded text-xs text-black focus:ring-1 focus:ring-black"
                               onKeyPress={(e) => {
                                 if (e.key === 'Enter') saveRegionEdit();
@@ -765,14 +779,18 @@ export default function BrokersPage() {
               <div>
                 <label className="block text-xs font-medium text-black mb-2">Vehicle Types</label>
                 <div className="flex gap-2 mb-2">
-                  <input
-                    type="text"
+                  <select
                     value={newVehicleType}
                     onChange={(e) => setNewVehicleType(e.target.value)}
-                    placeholder="Enter vehicle type"
                     className="flex-1 px-2 py-1.5 border border-black rounded text-xs text-black focus:ring-1 focus:ring-black"
-                    onKeyPress={(e) => e.key === 'Enter' && addVehicleType()}
-                  />
+                  >
+                    <option value="">Select Vehicle Type</option>
+                    {availableVehicleTypes.map((vehicleType) => (
+                      <option key={vehicleType.id} value={vehicleType.name}>
+                        {vehicleType.name}
+                      </option>
+                    ))}
+                  </select>
                   <button
                     type="button"
                     onClick={addVehicleType}
@@ -781,68 +799,22 @@ export default function BrokersPage() {
                     Add
                   </button>
                 </div>
-                <div className="space-y-1">
+                <div className="flex flex-wrap gap-2">
                   {brokerVehicleTypes.map((vehicleTypeData, index) => (
-                    <div key={index} className="flex items-center justify-between bg-white border border-black rounded px-2 py-1">
-                      {editingVehicleTypeIndex === index ? (
-                        <div className="flex items-center gap-2 flex-1">
-                          <input
-                            type="text"
-                            value={editingVehicleTypeValue}
-                            onChange={(e) => setEditingVehicleTypeValue(e.target.value)}
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter') saveVehicleTypeEdit();
-                              if (e.key === 'Escape') cancelVehicleTypeEdit();
-                            }}
-                            className="flex-1 px-1 py-0.5 border border-black rounded text-xs text-black focus:ring-1 focus:ring-black"
-                            autoFocus
-                          />
-                          <button
-                            type="button"
-                            onClick={saveVehicleTypeEdit}
-                            className="text-green-600 hover:text-green-700 text-xs"
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            onClick={cancelVehicleTypeEdit}
-                            className="text-gray-500 hover:text-gray-700 text-xs"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <span 
-                            className="text-xs text-black cursor-pointer hover:bg-gray-50 flex-1 py-0.5"
-                            onClick={() => startEditingVehicleType(index, vehicleTypeData.vehicleType)}
-                            title="Click to edit"
-                          >
-                            {vehicleTypeData.vehicleType}
-                          </span>
-                          <div className="flex gap-1">
-                            <button
-                              type="button"
-                              onClick={() => startEditingVehicleType(index, vehicleTypeData.vehicleType)}
-                              className="text-blue-500 hover:text-blue-700 text-xs"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => removeVehicleType(index)}
-                              className="text-red-500 hover:text-red-700 text-xs"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </>
-                      )}
+                    <div key={index} className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
+                      <span>{vehicleTypeData.vehicleType}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeVehicleType(index)}
+                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-200 rounded-full p-0.5"
+                        title="Remove vehicle type"
+                      >
+                        <X size={12} />
+                      </button>
                     </div>
                   ))}
                   {brokerVehicleTypes.length === 0 && (
-                    <div className="text-xs text-black bg-white border border-black rounded px-2 py-2 text-center">
+                    <div className="text-xs text-gray-500 py-2">
                       No vehicle types added yet
                     </div>
                   )}

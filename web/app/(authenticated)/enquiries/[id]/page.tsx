@@ -1491,6 +1491,12 @@ export default function EnquiryDetailsPage() {
               submitText="Create Transport Enquiry"
               showHeader={false}
               className="p-0"
+              initialValues={{
+                cargoType: enquiry.cargoType || '',
+                cargoWeight: enquiry.cargoWeight ? enquiry.cargoWeight.toString() : '',
+                transportDate: new Date().toISOString().split('T')[0],
+                remarks: `Route: ${enquiry.from} → ${enquiry.to}${enquiry.remarks ? `\nOriginal Remarks: ${enquiry.remarks}` : ''}`
+              }}
             />
           </div>
         </div>

@@ -7,6 +7,7 @@ import EnhancedPagination from '../../../components/EnhancedPagination';
 interface Lead {
   id: number;
   name: string;
+  company?: string;
   phone: string;
   alternatePhone?: string;
   source: string;
@@ -47,6 +48,7 @@ export default function LeadsPage() {
   const [currentLead, setCurrentLead] = useState<Lead | null>(null);
   const [formData, setFormData] = useState({
     name: '',
+    company: '',
     phone: '',
     alternatePhone: '',
     source: 'unknown',
@@ -72,7 +74,7 @@ export default function LeadsPage() {
         sortOrder,
       });
 
-      const response = await fetch(`http://localhost:3001/api/leads?${params}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/leads?${params}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -123,7 +125,7 @@ export default function LeadsPage() {
   const handleAdd = () => {
     setIsEdit(false);
     setCurrentLead(null);
-    setFormData({ name: '', phone: '', alternatePhone: '', source: 'unknown', referrer: '' });
+    setFormData({ name: '', company: '', phone: '', alternatePhone: '', source: 'unknown', referrer: '' });
     setShowModal(true);
   };
 
@@ -132,6 +134,7 @@ export default function LeadsPage() {
     setCurrentLead(lead);
     setFormData({
       name: lead.name,
+      company: lead.company || '',
       phone: lead.phone,
       alternatePhone: lead.alternatePhone || '',
       source: lead.source,
@@ -145,7 +148,7 @@ export default function LeadsPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/api/leads/${id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/leads/${id}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -167,8 +170,8 @@ export default function LeadsPage() {
     try {
       const token = localStorage.getItem('token');
       const url = isEdit
-        ? `http://localhost:3001/api/leads/${currentLead?.id}`
-        : 'http://localhost:3001/api/leads';
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/leads/${currentLead?.id}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/leads`;
 
       const response = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
@@ -294,6 +297,7 @@ export default function LeadsPage() {
                     {getSortIcon('name')}
                   </div>
                 </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-black uppercase">Company</th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-black uppercase">Phone</th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-black uppercase">Alternate Phone</th>
                 <th 
@@ -321,11 +325,11 @@ export default function LeadsPage() {
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-3 py-6 text-center text-black text-xs">Loading...</td>
+                  <td colSpan={8} className="px-3 py-6 text-center text-black text-xs">Loading...</td>
                 </tr>
               ) : leads.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-3 py-6 text-center text-black text-xs">No leads found</td>
+                  <td colSpan={8} className="px-3 py-6 text-center text-black text-xs">No leads found</td>
                 </tr>
               ) : (
                 leads.map((lead) => (
@@ -335,6 +339,9 @@ export default function LeadsPage() {
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-black">
                       {lead.name}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-xs text-black">
+                      {lead.company || '-'}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-xs text-black">{lead.phone}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-xs text-black">
@@ -400,6 +407,16 @@ export default function LeadsPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs text-black focus:ring-1 focus:ring-black"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-black mb-1">Company</label>
+                <input
+                  type="text"
+                  value={formData.company}
+                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                   className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs text-black focus:ring-1 focus:ring-black"
                 />
               </div>

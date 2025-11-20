@@ -10,7 +10,7 @@ interface TableColumn<T> {
 }
 
 interface TableProps<T> {
-  data: T[]
+  data?: T[]
   columns: TableColumn<T>[]
   pageSize?: number
   className?: string
@@ -28,10 +28,13 @@ function Table<T extends Record<string, any>>({
 }: TableProps<T>) {
   const [currentPage, setCurrentPage] = React.useState(1)
   
-  const totalPages = Math.ceil(data.length / pageSize)
+  // Safely handle undefined or null data
+  const safeData = data || []
+  
+  const totalPages = Math.ceil(safeData.length / pageSize)
   const startIndex = (currentPage - 1) * pageSize
   const endIndex = startIndex + pageSize
-  const currentData = showPagination ? data.slice(startIndex, endIndex) : data
+  const currentData = showPagination ? safeData.slice(startIndex, endIndex) : safeData
   
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
@@ -94,8 +97,8 @@ function Table<T extends Record<string, any>>({
       {showPagination && totalPages > 1 && (
         <div className="flex items-center justify-between px-2 py-4">
           <div className="text-sm text-black">
-            Showing {startIndex + 1} to {Math.min(endIndex, data.length)} of{" "}
-            {data.length} results
+            Showing {startIndex + 1} to {Math.min(endIndex, safeData.length)} of{" "}
+            {safeData.length} results
           </div>
           <div className="flex items-center space-x-2">
             <Button

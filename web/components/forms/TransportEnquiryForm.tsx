@@ -39,6 +39,7 @@ interface TransportEnquiryFormProps {
   cancelText?: string
   showHeader?: boolean
   className?: string
+  initialValues?: Partial<FormSchema>
 }
 
 export default function TransportEnquiryForm({
@@ -48,7 +49,8 @@ export default function TransportEnquiryForm({
   submitText = "Create Enquiry",
   cancelText = "Cancel",
   showHeader = true,
-  className = ""
+  className = "",
+  initialValues
 }: TransportEnquiryFormProps) {
   const [routes, setRoutes] = useState<TransportRoute[]>([])
   const [loadingRoutes, setLoadingRoutes] = useState(true)
@@ -60,7 +62,8 @@ export default function TransportEnquiryForm({
   ])
   
   const { register, handleSubmit, formState: { errors }, setValue } = useForm<FormSchema>({
-    resolver: zodResolver(formSchema)
+    resolver: zodResolver(formSchema),
+    defaultValues: initialValues
   })
 
   const { register: registerRoute, handleSubmit: handleRouteSubmit, formState: { errors: routeErrors }, reset: resetRoute, setValue: setRouteValue } = useForm<RouteSchema>({

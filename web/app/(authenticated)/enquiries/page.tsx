@@ -65,6 +65,7 @@ interface BrokerBid {
 interface Lead {
   id: number;
   name: string;
+  company?: string;
 }
 
 interface Pagination {
@@ -133,6 +134,15 @@ export default function EnquiriesPage() {
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedEnquiryId, setSelectedEnquiryId] = useState<number | null>(null);
+  const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
+  const [newCustomerData, setNewCustomerData] = useState({
+    name: '',
+    company: '',
+    phone: '',
+    alternatePhone: '',
+    source: 'unknown',
+    referrer: '',
+  });
   const [formData, setFormData] = useState({
     leadId: '',
     from: '',
@@ -167,7 +177,7 @@ export default function EnquiriesPage() {
   const fetchLeads = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/leads?limit=100', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/leads?limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -391,8 +401,8 @@ export default function EnquiriesPage() {
     try {
       const token = localStorage.getItem('token');
       const url = isEdit
-        ? `http://localhost:3001/api/enquiries/${currentEnquiry?.id}`
-        : 'http://localhost:3001/api/enquiries';
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/enquiries/${currentEnquiry?.id}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/enquiries`;
 
       const response = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
@@ -410,6 +420,48 @@ export default function EnquiriesPage() {
     } catch (error) {
       console.error(`Error ${isEdit ? 'updating' : 'creating'} enquiry:`, error);
       alert(`Failed to ${isEdit ? 'update' : 'create'} enquiry`);
+    }
+  };
+
+  const handleNewCustomerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/leads`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newCustomerData),
+      });
+
+      if (!response.ok) throw new Error('Failed to create customer');
+
+      const newCustomer = await response.json();
+      
+      // Refresh leads list
+      await fetchLeads();
+      
+      // Select the newly created customer
+      setFormData({ ...formData, leadId: newCustomer.id.toString() });
+      
+      // Reset form and close modal
+      setNewCustomerData({
+        name: '',
+        company: '',
+        phone: '',
+        alternatePhone: '',
+        source: 'unknown',
+        referrer: '',
+      });
+      setShowNewCustomerModal(false);
+      
+      alert('Customer created successfully!');
+    } catch (error) {
+      console.error('Error creating customer:', error);
+      alert('Failed to create customer');
     }
   };
 
@@ -893,7 +945,7 @@ export default function EnquiriesPage() {
                         </span>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-xs text-black">
-                        {new Date(enquiry.createdAt).toLocaleDateString()}
+                        {new Date(enquiry.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-right">
                         <div className="flex justify-end gap-1">
@@ -997,7 +1049,7 @@ export default function EnquiriesPage() {
                                           </span>
                                         </td>
                                         <td className="px-2 py-1 text-xs text-black">
-                                          {new Date(quote.createdAt).toLocaleDateString()}
+                                          {new Date(quote.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                                         </td>
                                         <td className="px-2 py-1 text-right">
                                           <button
@@ -1049,7 +1101,7 @@ export default function EnquiriesPage() {
                                         <td className="px-2 py-1 text-xs text-black">{order.route}</td>
                                         <td className="px-2 py-1 text-xs font-medium text-black">₹{order.amount}</td>
                                         <td className="px-2 py-1 text-xs text-black">
-                                          {new Date(order.createdAt).toLocaleDateString()}
+                                          {new Date(order.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                                         </td>
                                       </tr>
                                     ))}
@@ -1093,19 +1145,28 @@ export default function EnquiriesPage() {
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-black mb-1">Customer*</label>
-                <select
-                  value={formData.leadId}
-                  onChange={(e) => setFormData({ ...formData, leadId: e.target.value })}
-                  required
-                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs text-black focus:ring-1 focus:ring-black"
-                >
-                  <option value="">Select Customer</option>
-                  {leads.map((lead) => (
-                    <option key={lead.id} value={lead.id}>
-                      {lead.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    value={formData.leadId}
+                    onChange={(e) => setFormData({ ...formData, leadId: e.target.value })}
+                    required
+                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-xs text-black focus:ring-1 focus:ring-black"
+                  >
+                    <option value="">Select Customer</option>
+                    {leads.map((lead) => (
+                      <option key={lead.id} value={lead.id}>
+                        {lead.name}{lead.company ? ` - ${lead.company}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewCustomerModal(true)}
+                    className="px-3 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700 whitespace-nowrap"
+                  >
+                    + New
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -1388,6 +1449,103 @@ export default function EnquiriesPage() {
                   className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
                 >
                   Create Order
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showNewCustomerModal && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded max-w-md w-full p-4">
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-base font-bold text-black">Create New Customer</h2>
+              <button onClick={() => setShowNewCustomerModal(false)} className="text-black hover:text-black">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleNewCustomerSubmit} className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-black mb-1">Name*</label>
+                <input
+                  type="text"
+                  value={newCustomerData.name}
+                  onChange={(e) => setNewCustomerData({ ...newCustomerData, name: e.target.value })}
+                  required
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs text-black focus:ring-1 focus:ring-black"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-black mb-1">Company</label>
+                <input
+                  type="text"
+                  value={newCustomerData.company}
+                  onChange={(e) => setNewCustomerData({ ...newCustomerData, company: e.target.value })}
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs text-black focus:ring-1 focus:ring-black"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-black mb-1">Phone*</label>
+                <input
+                  type="tel"
+                  value={newCustomerData.phone}
+                  onChange={(e) => setNewCustomerData({ ...newCustomerData, phone: e.target.value })}
+                  required
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs text-black focus:ring-1 focus:ring-black"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-black mb-1">Alternate Phone</label>
+                <input
+                  type="tel"
+                  value={newCustomerData.alternatePhone}
+                  onChange={(e) => setNewCustomerData({ ...newCustomerData, alternatePhone: e.target.value })}
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs text-black focus:ring-1 focus:ring-black"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-black mb-1">Source</label>
+                <select
+                  value={newCustomerData.source}
+                  onChange={(e) => setNewCustomerData({ ...newCustomerData, source: e.target.value })}
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs text-black focus:ring-1 focus:ring-black"
+                >
+                  <option value="unknown">Unknown</option>
+                  <option value="referral">Referral</option>
+                  <option value="india_mart">IndiaMart</option>
+                  <option value="just_dial">JustDial</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-black mb-1">Referrer</label>
+                <input
+                  type="text"
+                  value={newCustomerData.referrer}
+                  onChange={(e) => setNewCustomerData({ ...newCustomerData, referrer: e.target.value })}
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs text-black focus:ring-1 focus:ring-black"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNewCustomerModal(false)}
+                  className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-xs hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-3 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                >
+                  Create Customer
                 </button>
               </div>
             </form>

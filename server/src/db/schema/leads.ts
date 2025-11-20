@@ -7,6 +7,7 @@ export const leads = pgTable("leads", {
   id: serial('id').primaryKey(),
   userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 256 }).notNull(),
+  company: varchar("company", { length: 256 }),
   phone: varchar("phone", { length: 32 }),
   alternatePhone: varchar("alternatePhone", { length: 32 }),
   source: leadSourceEnum("source").default("unknown"),

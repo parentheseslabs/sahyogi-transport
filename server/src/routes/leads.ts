@@ -39,6 +39,7 @@ router.get('/', async (req, res) => {
       const searchNum = parseInt(search as string);
       const searchConditions = [
         like(leads.name, `%${search}%`),
+        like(leads.company, `%${search}%`),
         like(leads.phone, `%${search}%`)
       ];
       
@@ -133,6 +134,7 @@ router.post('/', async (req, res) => {
   try {
     const {
       name,
+      company,
       phone,
       alternatePhone,
       source,
@@ -147,6 +149,7 @@ router.post('/', async (req, res) => {
     const newLead = await db.insert(leads).values({
       userId: req.user!.userId,
       name,
+      company,
       phone,
       alternatePhone,
       source: source || 'unknown',
@@ -166,6 +169,7 @@ router.put('/:id', async (req, res) => {
     const leadId = parseInt(req.params.id);
     const {
       name,
+      company,
       phone,
       alternatePhone,
       source,
@@ -175,6 +179,7 @@ router.put('/:id', async (req, res) => {
     const updatedLead = await db.update(leads)
       .set({
         name,
+        company,
         phone,
         alternatePhone,
         source,
